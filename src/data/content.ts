@@ -217,7 +217,7 @@ export interface ContentMeta {
       id: 1,
       title: "Web 3.0 ve Blockchain",
       description: "Geleceğin internet teknolojileri",
-      image: "/assets/images/blog/web3-blockchain-banner.webp",
+      image: "/assets/images/blog/blog-career-yazilim-muhendisi.webp",
       meta: {
         author: "Ahmet Yılmaz",
         readTime: "10 dk okuma"
@@ -228,7 +228,7 @@ export interface ContentMeta {
       id: 2,
       title: "Clean Code Prensipleri",
       description: "Daha iyi kod yazma teknikleri",
-      image: "/assets/images/blog/clean-code-banner.webp",
+      image: "/assets/images/blog/blog-software-clean-code.webp",
       meta: {
         author: "Mehmet Demir",
         readTime: "15 dk okuma"
@@ -239,7 +239,7 @@ export interface ContentMeta {
       id: 3,
       title: "Microservices Mimarisi",
       description: "Modern uygulama mimarileri",
-      image: "/assets/images/blog/microservices-banner.webp",
+      image: "/assets/images/blog/blog-tips-verimlilik.webp",
       meta: {
         author: "Ayşe Kara",
         readTime: "12 dk okuma"
@@ -250,7 +250,7 @@ export interface ContentMeta {
       id: 4,
       title: "Frontend Trendleri",
       description: "2024'ün öne çıkan frontend teknolojileri",
-      image: "/assets/images/blog/frontend-trends-banner.webp",
+      image: "/assets/images/blog/blog-tech-web3.webp",
       meta: {
         author: "Can Yıldız",
         readTime: "8 dk okuma"
