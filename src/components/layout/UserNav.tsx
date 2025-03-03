@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { signOutUser } from '@/lib/firebase/auth';
 import { useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/router'; // next/navigation yerine next/router
+import { useRouter } from 'next/router';
 
 export function UserNav() {
   const { user, isLoading } = useAuth();
@@ -45,6 +45,8 @@ export function UserNav() {
       <button
         className="flex items-center gap-2 rounded-full focus:outline-none"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       >
         {user.photoURL ? (
           <Image

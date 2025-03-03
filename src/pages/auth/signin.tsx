@@ -1,28 +1,48 @@
+// src/pages/auth/signin.tsx
+
 import { NextPage } from 'next';
-import { signInWithGoogle } from '@/lib/firebase/auth';
-import { useState } from 'react';
-import { useRouter } from 'next/router'; // App Router'dan Pages Router'a geçerken navigation hook değişir
-import Image from 'next/image';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/contexts/auth-context';
+import { loginWithEmailAndPassword } from '@/lib/firebase/auth';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 const SignInPage: NextPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { user } = useAuth();
   const router = useRouter();
+  
+  // Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
+  useEffect(() => {
+    if (user) {
+      router.push('/');
+    }
+  }, [user, router]);
 
-  const handleGoogleSignIn = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      setError('');
-      
-      const result = await signInWithGoogle();
-      if (result.success) {
-        router.push('/'); // Ana sayfaya yönlendir
+      await loginWithEmailAndPassword(email, password);
+      // Başarılı giriş sonrası ana sayfaya yönlendir
+      router.push('/');
+    } catch (error: any) {
+      // Firebase hata mesajları
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError('Email veya şifre hatalı.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setError('Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.');
+      } else {
+        setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
       }
-    } catch (error) {
-      setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
-      console.error('Giriş hatası:', error);
     } finally {
       setIsLoading(false);
     }
@@ -32,98 +52,112 @@ const SignInPage: NextPage = () => {
     <>
       <Head>
         <title>Giriş Yap - Tech Rehberi</title>
-        <meta name="description" content="Hesabınıza giriş yapın." />
+        <meta name="description" content="Tech Rehberi hesabınıza giriş yapın." />
       </Head>
 
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-xl shadow-lg border border-border">
           <div className="text-center">
-            <Link href="/" className="inline-block">
-              <Image 
-                src="/assets/images/logo.png" 
-                alt="Logo" 
-                width={64} 
-                height={64}
-                className="mx-auto rounded-lg"
-              />
-            </Link>
-            <h2 className="mt-6 text-3xl font-bold tracking-tight">
-              Hesabınıza giriş yapın
-            </h2>
+            <h1 className="text-3xl font-bold">Giriş Yap</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              veya{' '}
-              <Link href="/" className="font-medium text-primary hover:text-primary/90">
-                ana sayfaya dönün
-              </Link>
+              Tech Rehberi'ne hoş geldiniz
             </p>
           </div>
 
           {error && (
-            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+            <div className="p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-input bg-background hover:bg-accent rounded-lg text-sm font-medium transition-colors"
-            >
-              <Image 
-                src="/assets/images/icons/google.svg" 
-                alt="Google" 
-                width={20} 
-                height={20} 
-              />
-              {isLoading ? 'Giriş yapılıyor...' : 'Google ile devam et'}
-            </button>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium mb-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="ornek@email.com"
+                />
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="password" className="block text-sm font-medium">
+                    Şifre
+                  </label>
+                  <Link 
+                    href="/auth/reset-password" 
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Şifremi Unuttum
+                  </Link>
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="********"
+                />
+              </div>
+            </div>
 
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <span className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2"></span>
+                    Giriş yapılıyor...
+                  </span>
+                ) : (
+                  'Giriş Yap'
+                )}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <div className="w-full border-t border-muted"></div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  veya email ile devam edin
-                </span>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-card text-muted-foreground">veya</span>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email adresi"
-                className="w-full px-3 py-2 border border-input rounded-md text-sm focus:ring-2 focus:ring-primary"
-              />
-              <input
-                type="password"
-                name="password"
-                placeholder="Şifre"
-                className="w-full px-3 py-2 border border-input rounded-md text-sm focus:ring-2 focus:ring-primary"
-              />
+            <div className="mt-6">
+              <GoogleSignInButton />
             </div>
-
-            <button
-              type="button"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              Giriş Yap
-            </button>
           </div>
 
-          <div className="text-center text-sm">
-            <Link href="/auth/forgot-password" className="text-primary hover:text-primary/90">
-              Şifrenizi mi unuttunuz?
-            </Link>
-          </div>
-
-          <div className="text-center text-sm">
-            Hesabınız yok mu?{' '}
-            <Link href="/auth/signup" className="font-medium text-primary hover:text-primary/90">
-              Kayıt olun
-            </Link>
+          <div className="text-center mt-4">
+            <p className="text-sm text-muted-foreground">
+              Hesabınız yok mu?{' '}
+              <Link 
+                href="/auth/signup" 
+                className="font-medium text-primary hover:underline"
+              >
+                Üye Ol
+              </Link>
+            </p>
           </div>
         </div>
       </div>
