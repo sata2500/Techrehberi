@@ -1,9 +1,14 @@
 // src/pages/api/blog/posts/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getBlogPosts, saveBlogPost } from '@/lib/firebase/blog';
+import { logPostCreated, logPostPublished } from '@/lib/firebase/activity';
 import { withAdminAuth } from '@/lib/middleware/adminAuth';
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
+interface ExtendedNextApiRequest extends NextApiRequest {
+  userId?: string;
+}
+
+async function handler(req: ExtendedNextApiRequest, res: NextApiResponse) {
   try {
     // GET: Blog yazılarını getir
     if (req.method === 'GET') {
@@ -29,7 +34,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     
     // POST: Yeni blog yazısı oluştur
     if (req.method === 'POST') {
+      const { title, status } = req.body;
+      const userId = req.userId || 'unknown';
+      const authorName = req.body.author?.name || 'Admin';
+      
+      // Yazıyı kaydet
       const postId = await saveBlogPost(req.body);
+      
+      // Aktivite kaydı oluştur
+      if (status === 'published') {
+        // Yazı yayınlandıysa yayınlama aktivitesi oluştur
+        await logPostPublished(userId, authorName, postId, title);
+      } else {
+        // Yazı taslak olarak kaydedildiyse oluşturma aktivitesi oluştur
+        await logPostCreated(userId, authorName, postId, title);
+      }
+      
       return res.status(201).json({ success: true, data: { id: postId } });
     }
     

@@ -1,9 +1,14 @@
 // src/pages/api/blog/posts/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getBlogPost, saveBlogPost, deleteBlogPost } from '@/lib/firebase/blog';
+import { logPostUpdated, logPostPublished } from '@/lib/firebase/activity';
 import { withAdminAuth } from '@/lib/middleware/adminAuth';
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
+interface ExtendedNextApiRequest extends NextApiRequest {
+  userId?: string;
+}
+
+async function handler(req: ExtendedNextApiRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
     
@@ -24,7 +29,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     
     // PUT: Blog yazısını güncelle
     if (req.method === 'PUT') {
+      const userId = req.userId || 'unknown';
+      const authorName = req.body.author?.name || 'Admin';
+      const { title, status, previousStatus } = req.body;
+      
+      // Yazıyı güncelle
       const postId = await saveBlogPost({ ...req.body, id });
+      
+      // Aktivite kaydı oluştur
+      if (previousStatus !== 'published' && status === 'published') {
+        // Yazı ilk kez yayınlandıysa
+        await logPostPublished(userId, authorName, postId, title);
+      } else {
+        // Yazı güncellendiyse
+        await logPostUpdated(userId, authorName, postId, title);
+      }
+      
       return res.status(200).json({ success: true, data: { id: postId } });
     }
     
