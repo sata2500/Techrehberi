@@ -1,5 +1,5 @@
-// src/pages/admin/posts/[action].tsx
-import { useState, useEffect, useMemo } from 'react';
+// src/pages/admin/posts/[action].tsx - Blog Yazısı Düzenleme Sayfası Güncellemesi
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { NextPageWithLayout } from '@/pages/_app';
 import { ReactElement } from 'react';
 import Head from 'next/head';
@@ -7,17 +7,25 @@ import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Link from 'next/link';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { BlogPostEditor } from '@/components/admin/BlogPostEditor';
 import { useAuth } from '@/contexts/auth-context';
-import { BlogPostEditor } from '@/components/admin/BlogPostEditor'; // Bu bileşeni sonra oluşturacağız
 import { 
   ArrowLeft, 
   Save, 
   Eye, 
   Trash, 
   Image as ImageIcon, 
-  Loader
+  Loader,
+  AlertCircle,
+  X,
+  Upload,
+  CheckCircle
 } from 'lucide-react';
 import { slugify } from '@/lib/utils';
+
+// Firebase servislerini import edeceğiz
+// import { saveBlogPost, getBlogPost, uploadImage } from '@/lib/firebase/blog';
+// import { getCategories } from '@/lib/firebase/blog';
 
 // Blog yazısı için tip
 interface BlogPost {
@@ -53,6 +61,7 @@ interface BlogPost {
 interface Category {
   id: string;
   name: string;
+  slug: string;
 }
 
 const BlogPostForm: NextPageWithLayout = () => {
@@ -89,10 +98,12 @@ const BlogPostForm: NextPageWithLayout = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   
   const isEditMode = useMemo(() => action === 'edit' && id, [action, id]);
-  const pageTitle = isEditMode ? 'Blog Yazısı Düzenle' : 'Yeni Blog Yazısı';
+  const pageTitle = isEditMode ? 'Blog Yazısı Düzenle' : 'Yeni Blog Yazı';
   
   // Veri yükleme
   useEffect(() => {
@@ -101,25 +112,51 @@ const BlogPostForm: NextPageWithLayout = () => {
         setLoading(true);
         setError(null);
         
-        // Kategorileri getir
-        const categoriesResponse = await fetch('/api/blog/categories');
-        const categoriesData = await categoriesResponse.json();
+        // Kategorileri getir - Gerçek uygulamada Firebase'den gelecek
+        // const categoriesData = await getCategories();
+        // setCategories(categoriesData);
         
-        if (categoriesData.success) {
-          setCategories(categoriesData.data);
-        }
+        // Örnek kategoriler
+        setCategories([
+          { id: '1', name: 'Teknoloji', slug: 'teknoloji' },
+          { id: '2', name: 'Yazılım', slug: 'yazilim' },
+          { id: '3', name: 'Kariyer', slug: 'kariyer' },
+          { id: '4', name: 'İpuçları', slug: 'ipuclari' },
+        ]);
         
         // Düzenleme modunda ise yazıyı getir
         if (isEditMode) {
-          const postResponse = await fetch(`/api/blog/posts/${id}`);
-          const postData = await postResponse.json();
+          // Gerçek uygulamada Firebase'den gelecek
+          // const postData = await getBlogPost(id as string);
           
-          if (postData.success) {
-            setPost(postData.data);
-          } else {
-            setError('Yazı bulunamadı');
-            router.push('/admin/posts');
-          }
+          // Örnek veri
+          const postData = {
+            id: '1',
+            title: 'Örnek Blog Yazısı',
+            slug: 'ornek-blog-yazisi',
+            content: '<p>Bu bir örnek içeriktir.</p>',
+            excerpt: 'Örnek özet metni',
+            coverImage: '/assets/images/blog-example.jpg',
+            author: {
+              id: user?.uid || 'anonymous',
+              name: user?.displayName || 'Anonim',
+              image: user?.photoURL || undefined
+            },
+            categories: ['1', '2'],
+            tags: ['react', 'javascript'],
+            status: 'draft',
+            featured: false,
+            publishedAt: null,
+            metadata: {
+              seo: {
+                title: 'Örnek Blog Yazısı',
+                description: 'Örnek meta açıklaması',
+                keywords: ['örnek', 'blog', 'yazı'],
+              },
+            }
+          };
+          
+          setPost(postData as BlogPost);
         } else {
           // Yeni yazı oluşturma modu ise, author bilgilerini ayarla
           if (user) {
@@ -141,20 +178,20 @@ const BlogPostForm: NextPageWithLayout = () => {
       }
     };
     
-    if (user) {
+    if (router.isReady && user) {
       fetchData();
     }
-  }, [router, isEditMode, id, user]);
+  }, [router.isReady, isEditMode, id, user]);
   
   // Başlık değiştiğinde otomatik slug oluştur
   useEffect(() => {
-    if (!isEditMode && post.title) {
+    if (!isEditMode && post.title && !post.slug) {
       setPost((prevPost) => ({
         ...prevPost,
         slug: slugify(post.title),
       }));
     }
-  }, [post.title, isEditMode]);
+  }, [post.title, isEditMode, post.slug]);
   
   // Form değişikliklerini işleme
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -236,40 +273,72 @@ const BlogPostForm: NextPageWithLayout = () => {
     try {
       setUploadProgress(1); // Yükleme başladı
       
-      const response = await fetch('/api/blog/media/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      // Gerçek uygulamada Firebase Storage'a yükleme yapılacak
+      // const downloadURL = await uploadImage(file, 'blog-covers');
       
-      setUploadProgress(100); // Yükleme tamamlandı
+      // Simüle edilmiş yükleme
+      for (let i = 1; i <= 100; i += 20) {
+        setTimeout(() => setUploadProgress(i), i * 30);
+      }
       
-      const data = await response.json();
-      
-      if (data.success) {
+      // Sahte URL oluştur
+      setTimeout(() => {
+        const mockURL = `/assets/images/blog-covers/${file.name.replace(/\s+/g, '-')}`;
         setPost((prevPost) => ({
           ...prevPost,
-          coverImage: data.data.url,
+          coverImage: mockURL,
         }));
-      } else {
-        throw new Error(data.error);
-      }
+        setUploadProgress(0);
+      }, 1500);
+      
     } catch (err) {
       console.error('Upload error:', err);
       setError('Görsel yüklenirken bir hata oluştu');
-    } finally {
       setUploadProgress(0);
     }
   };
   
-  // Formu kaydetme
-  const handleSave = async (status: 'draft' | 'published' = 'draft') => {
+  // Medya kütüphanesinden görsel seçme
+  const handleSelectFromLibrary = () => {
+    setShowMediaLibrary(true);
+  };
+  
+  // Medya kütüphanesinden görsel seçildi
+  const handleMediaSelect = useCallback((mediaUrl: string) => {
+    setPost(prev => ({
+      ...prev,
+      coverImage: mediaUrl
+    }));
+    setShowMediaLibrary(false);
+  }, []);
+  
+  // Geçerlilik kontrolü
+  const validateForm = (): boolean => {
     if (!post.title) {
       setError('Başlık alanı zorunludur');
-      return;
+      return false;
     }
+    
+    if (!post.slug) {
+      setError('Slug alanı zorunludur');
+      return false;
+    }
+    
+    if (!post.content) {
+      setError('İçerik alanı zorunludur');
+      return false;
+    }
+    
+    return true;
+  };
+  
+  // Formu kaydetme
+  const handleSave = async (status: 'draft' | 'published' = 'draft') => {
+    if (!validateForm()) return;
     
     setSaving(true);
     setError(null);
+    setSuccess(null);
     
     try {
       const savePost = {
@@ -278,24 +347,30 @@ const BlogPostForm: NextPageWithLayout = () => {
         publishedAt: status === 'published' ? new Date().toISOString() : post.publishedAt,
       };
       
-      const url = isEditMode ? `/api/blog/posts/${id}` : '/api/blog/posts';
-      const method = isEditMode ? 'PUT' : 'POST';
+      // Gerçek uygulamada Firebase Firestore'a kaydetme
+      // const postId = await saveBlogPost(savePost);
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(savePost),
-      });
+      // Simüle edilmiş kaydetme işlemi
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const data = await response.json();
+      const postId = post.id || Date.now().toString();
       
-      if (data.success) {
-        router.push('/admin/posts');
-      } else {
-        throw new Error(data.error);
+      // Başarılı kaydetme
+      setSuccess(`Blog yazısı başarıyla ${status === 'published' ? 'yayınlandı' : 'kaydedildi'}`);
+      
+      // Yeni oluşturulan blog yazısının ID'sini state'e ekle
+      if (!post.id) {
+        setPost(prev => ({
+          ...prev,
+          id: postId
+        }));
       }
+      
+      // 2 saniye sonra blog yazıları listesine dön
+      setTimeout(() => {
+        router.push('/admin/posts');
+      }, 2000);
+      
     } catch (err) {
       console.error('Save error:', err);
       setError('Yazı kaydedilirken bir hata oluştu');
@@ -363,9 +438,30 @@ const BlogPostForm: NextPageWithLayout = () => {
       
       {/* Ana İçerik */}
       <div className="p-6">
+        {/* Bildirimler */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 flex items-start">
+            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">{error}</div>
+            <button 
+              onClick={() => setError(null)}
+              className="ml-2 text-red-500 hover:text-red-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 flex items-start">
+            <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">{success}</div>
+            <button 
+              onClick={() => setSuccess(null)}
+              className="ml-2 text-green-500 hover:text-green-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
         
@@ -431,18 +527,29 @@ const BlogPostForm: NextPageWithLayout = () => {
                 <div className="border-2 border-dashed border-muted rounded-md p-8 text-center">
                   <ImageIcon className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground mb-4">
-                    Kapak görseli yükleyin veya sürükleyip bırakın
+                    Kapak görseli yükleyin veya medya kütüphanesinden seçin
                   </p>
                   
-                  <label className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleCoverImageUpload}
-                    />
-                    <span>Görsel Seç</span>
-                  </label>
+                  <div className="flex justify-center gap-4">
+                    <label className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleCoverImageUpload}
+                      />
+                      <Upload className="w-4 h-4 mr-2" />
+                      <span>Görsel Yükle</span>
+                    </label>
+                    
+                    <button
+                      onClick={handleSelectFromLibrary}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-accent hover:bg-accent/80 rounded-md transition-colors"
+                    >
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      <span>Kütüphaneden Seç</span>
+                    </button>
+                  </div>
                   
                   {uploadProgress > 0 && (
                     <div className="mt-4">
@@ -520,8 +627,17 @@ const BlogPostForm: NextPageWithLayout = () => {
                 >
                   <option value="draft">Taslak</option>
                   <option value="published">Yayında</option>
+                  <option value="archived">Arşivlenmiş</option>
                 </select>
               </div>
+              
+              {post.status === 'published' && post.publishedAt && (
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Yayınlanma Tarihi: {new Date(post.publishedAt).toLocaleString('tr-TR')}
+                  </p>
+                </div>
+              )}
             </div>
             
             {/* Kategoriler */}
@@ -549,6 +665,13 @@ const BlogPostForm: NextPageWithLayout = () => {
                   ))
                 )}
               </div>
+              
+              <Link 
+                href="/admin/categories"
+                className="text-sm text-primary hover:underline inline-block"
+              >
+                Kategorileri Yönet
+              </Link>
             </div>
             
             {/* Etiketler */}
@@ -662,6 +785,53 @@ const BlogPostForm: NextPageWithLayout = () => {
           </div>
         </div>
       </div>
+      
+      {/* Medya Kütüphanesi Modal */}
+      {showMediaLibrary && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg w-[800px] max-w-[90vw] max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold">Medya Kütüphanesi</h3>
+              <button
+                onClick={() => setShowMediaLibrary(false)}
+                className="p-1 hover:bg-accent rounded-md"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 flex-1 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {/* Örnek medya öğeleri */}
+                {Array.from({ length: 12 }).map((_, index) => (
+                  <div 
+                    key={index} 
+                    className="relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => handleMediaSelect(`/assets/images/media/image-${index + 1}.jpg`)}
+                  >
+                    <div className="absolute inset-0 bg-muted flex items-center justify-center">
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Yükleme butonu */}
+              <div className="mt-4 text-center">
+                <label className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                  />
+                  <Upload className="w-4 h-4 mr-2" />
+                  <span>Yeni Medya Yükle</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
