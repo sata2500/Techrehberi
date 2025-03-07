@@ -126,3 +126,28 @@ import {
       throw error;
     }
   };
+
+// Admin kullanıcıların listesini getir
+export const getAdminUsers = async (): Promise<AdminUser[]> => {
+    try {
+      const q = query(adminUsersCollection, where('deleted', '!=', true));
+      const querySnapshot = await getDocs(q);
+      
+      const admins: AdminUser[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        admins.push({
+          userId: doc.id,
+          role: data.role,
+          permissions: data.permissions || [],
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate()
+        } as AdminUser);
+      });
+      
+      return admins;
+    } catch (error) {
+      console.error('Error getting admin users:', error);
+      throw error;
+    }
+  };

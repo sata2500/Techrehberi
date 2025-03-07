@@ -318,20 +318,72 @@ import {
       throw error;
     }
   };
+
+// src/lib/firebase/blog.ts dosyasındaki uploadImage fonksiyonu güncelleme
+
+// Formidable File tipi için arayüz
+export interface FileWithPath {
+    filepath: string;
+    originalFilename: string;
+    mimetype: string;
+    size: number;
+  }
   
   // Görsel yükleme
-  export const uploadImage = async (file: File, folder: string = 'blog-images') => {
+  export const uploadImage = async (file: FileWithPath, folder: string = 'blog-images') => {
     try {
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Dosya uzantısını al
+      const fileExtension = path.extname(file.originalFilename) || '.jpg';
+      
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${fileExtension}`;
       const storageRef = ref(storage, `${folder}/${fileName}`);
       
-      await uploadBytes(storageRef, file);
+      // Dosyayı oku ve yükle
+      const fileBuffer = fs.readFileSync(file.filepath);
+      await uploadBytes(storageRef, fileBuffer);
+      
       const downloadURL = await getDownloadURL(storageRef);
       
       return downloadURL;
     } catch (error) {
       console.error('Görsel yüklenirken hata oluştu:', error);
+      throw error;
+    }
+  };
+
+// Belirli bir kategoriyi getir
+export const getCategory = async (id: string) => {
+    try {
+      const docRef = doc(categoriesCollection, id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt)
+        } as Category;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Kategori getirilirken hata oluştu:', error);
+      throw error;
+    }
+  };
+  
+  // Kategori sil
+  export const deleteCategory = async (id: string) => {
+    try {
+      await deleteDoc(doc(categoriesCollection, id));
+      return true;
+    } catch (error) {
+      console.error('Kategori silinirken hata oluştu:', error);
       throw error;
     }
   };

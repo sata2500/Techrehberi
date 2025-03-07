@@ -15,8 +15,9 @@ export interface ContentMeta {
     title: string;
     description: string;
     image: string;
-    meta: ContentMeta;
     slug?: string;
+    meta: ContentMeta;
+    tags?: string[]; // tags özelliğini ekledik
   }
   
   // En Son Eklenenler
