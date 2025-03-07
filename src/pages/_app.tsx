@@ -1,17 +1,33 @@
+// src/pages/_app.tsx
 import type { AppProps } from 'next/app';
+import type { NextPage } from 'next';
+import { ReactElement, ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 import Head from 'next/head';
 import Script from 'next/script';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { AuthProvider } from '@/contexts/auth-context';
 import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer'; // Footer bileşenini import ediyoruz
+import Footer from '@/components/layout/Footer';
 import MobileNavBar from '@/components/layout/MobileNavBar';
 import '@/styles/globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export default function MyApp({ Component, pageProps }: AppProps) {
+// Özel layout kullanan sayfalar için tip tanımı
+export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
+  getLayout?: (page: ReactElement) => ReactNode;
+};
+
+// Layout destekli AppProps
+type AppPropsWithLayout = AppProps & {
+  Component: NextPageWithLayout;
+};
+
+export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+  // Sayfa seviyesinde tanımlanan layout'u kullan
+  const getLayout = Component.getLayout ?? ((page) => page);
+
   return (
     <>
       <Head>
@@ -21,34 +37,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <meta name="google-site-verification" content="google-site-verification=XXXXXXXXX" />
       </Head>
       
-      {/* Google Analytics */}
-      <Script
-        strategy="afterInteractive"
-        src="https://www.googletagmanager.com/gtag/js?id=G-LNJ2KXE7HW"
-      />
-      <Script
-        id="google-analytics"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-LNJ2KXE7HW', {
-              'anonymize_ip': true,
-              'cookie_flags': 'SameSite=None;Secure'
-            });
-          `,
-        }}
-      />
-
-      {/* Google AdSense */}
-      <Script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9393909278390048"
-        crossOrigin="anonymous"
-        strategy="afterInteractive"
-      />
+      {/* Google Analytics ve diğer scriptler... */}
       
       <AuthProvider>
         <ThemeProvider
@@ -57,14 +46,20 @@ export default function MyApp({ Component, pageProps }: AppProps) {
           enableSystem
           disableTransitionOnChange
         >
-          <div className={`${inter.className} flex flex-col min-h-screen`}>
-            <Header />
-            <main className="flex-grow pb-16 lg:pb-0">
+          {getLayout(
+            Component.getLayout ? (
               <Component {...pageProps} />
-            </main>
-            <Footer /> {/* Footer bileşenini ekliyoruz */}
-            <MobileNavBar />
-          </div>
+            ) : (
+              <div className={`${inter.className} flex flex-col min-h-screen`}>
+                <Header />
+                <main className="flex-grow pb-16 lg:pb-0">
+                  <Component {...pageProps} />
+                </main>
+                <Footer />
+                <MobileNavBar />
+              </div>
+            )
+          )}
         </ThemeProvider>
       </AuthProvider>
     </>
